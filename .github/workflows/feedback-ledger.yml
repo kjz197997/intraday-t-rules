@@ -1,0 +1,32 @@
+name: feedback-ledger
+
+on:
+  schedule:
+    - cron: '30 8 * * 1-5'   # UTC 08:30 = 北京时间 16:30，仅工作日
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch issues and append to ledger
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: python3 scripts/fetch_feedback.py
+      - name: Commit if changed
+        run: |
+          git config user.name "feedback-bot"
+          git config user.email "feedback-bot@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add 反馈台账.md
+            git commit -m "chore: 自动抓取反馈 $(date -u +%Y-%m-%d)"
+            git push
+          else
+            echo "no change"
+          fi
